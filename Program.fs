@@ -7,16 +7,27 @@ let tileSize = 32f
 let (windowWidth, windowHeight) = (640, 480)
 
 [<AbstractClass>]
-type GameObject(x: float32, y: float32, sprite: Image) =
+type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
     member val X = x with get, set
     member val Y = y with get, set
-    member __.Width = sprite.GetWidth() |> float32
-    member __.Height = sprite.GetHeight() |> float32
+
+    member __.Width =
+        match sprite with
+        | Some sprite -> sprite.GetWidth() |> float32
+        | None -> tileSize
+
+    member __.Height =
+        match sprite with
+        | Some sprite -> sprite.GetHeight() |> float32
+        | None -> tileSize
+
     member __.Sprite = sprite
 
     default this.Draw() =
-        Graphics.Draw(this.Sprite, this.X, this.Y, 0f, 1f, 1f, 0f, 0f)
+        match this.Sprite with
+        | Some sprite -> Graphics.Draw(sprite, this.X, this.Y, 0f, 1f, 1f, 0f, 0f)
+        | None -> ()
 
     member object.Intersects(otherObject: GameObject) =
         [ {| X = object.X; Y = object.Y |}
@@ -36,8 +47,11 @@ type GameObject(x: float32, y: float32, sprite: Image) =
     abstract member Collide : GameObject -> unit
     default __.Collide(_) = ()
 
+type DeathBox(x, y) =
+    inherit GameObject(x, y, None)
+
 type HorizontalMover(x, y, moveSpeed, sprite) =
-    inherit GameObject(x, y, sprite)
+    inherit GameObject(x, y, Some sprite)
 
     override object.Update(dt) =
         object.X <- object.X + moveSpeed * dt
@@ -57,7 +71,7 @@ type Log(x, y, moveSpeed) =
 type Doge() =
     inherit GameObject(float32 windowWidth / 2f,
                        float32 windowHeight - tileSize,
-                       Graphics.NewImage("media/sprites/doge.png"))
+                       Some(Graphics.NewImage("media/sprites/doge.png")))
 
     override doge.KeyPressed(key, _, _) =
         match key with
@@ -67,7 +81,12 @@ type Doge() =
         | KeyConstant.Down -> doge.Y <- doge.Y + tileSize
         | _ -> ()
 
-    override doge.Collide(otherObject) = printfn "doge collide"
+    override doge.Collide(otherObject) =
+        match otherObject with
+        | :? Car -> printfn "doge smoosh"
+        | :? Log -> printfn "doge on log"
+        | :? DeathBox -> printfn "doge ded"
+        | _ -> ()
 
 type Playing() =
     inherit Scene()
@@ -79,7 +98,8 @@ type Playing() =
           Car(0f, 0f, 100f)
           Car(0f, 32f, -200f)
           Log(0f, 32f * 5f, -100f)
-          Log(0f, 32f * 6f, 200f) ]
+          Log(0f, 32f * 6f, 200f)
+          DeathBox(0f, 0f) ]
 
     override __.Draw() =
         for object in objects do
