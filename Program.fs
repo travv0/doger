@@ -9,6 +9,7 @@ let (windowWidth, windowHeight) = (640, 480)
 [<AbstractClass>]
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
+
     member val X = x with get, set
     member val Y = y with get, set
 
@@ -47,8 +48,11 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
     abstract member Collide : GameObject -> unit
     default __.Collide(_) = ()
 
+    abstract member PostUpdate : unit -> unit
+    default __.PostUpdate() = ()
+
 type DeathBox(x, y) =
-    inherit GameObject(x, y, None)
+    inherit GameObject(x, y, Some(Graphics.NewImage("media/sprites/doge.png")))
 
 type HorizontalMover(x, y, moveSpeed, sprite) =
     inherit GameObject(x, y, Some sprite)
@@ -73,6 +77,9 @@ type Doge() =
                        float32 windowHeight - tileSize,
                        Some(Graphics.NewImage("media/sprites/doge.png")))
 
+    let mutable isOnLog = false
+    let mutable isOnDeathBox = false
+
     override doge.KeyPressed(key, _, _) =
         match key with
         | KeyConstant.Right -> doge.X <- doge.X + tileSize
@@ -81,12 +88,22 @@ type Doge() =
         | KeyConstant.Down -> doge.Y <- doge.Y + tileSize
         | _ -> ()
 
-    override doge.Collide(otherObject) =
+    override __.Update(dt) =
+        isOnLog <- false
+        isOnDeathBox <- false
+
+    override __.Collide(otherObject) =
         match otherObject with
         | :? Car -> printfn "doge smoosh"
-        | :? Log -> printfn "doge on log"
-        | :? DeathBox -> printfn "doge ded"
+        | :? Log -> isOnLog <- true
+        | :? DeathBox -> isOnDeathBox <- true
         | _ -> ()
+
+    override __.PostUpdate() =
+        if isOnDeathBox && not isOnLog then
+            printfn "doge ded"
+        else if isOnLog && isOnDeathBox then
+            printfn "doge safe on log"
 
 type Playing() =
     inherit Scene()
@@ -98,8 +115,8 @@ type Playing() =
           Car(0f, 0f, 100f)
           Car(0f, 32f, -200f)
           Log(0f, 32f * 5f, -100f)
-          Log(0f, 32f * 6f, 200f)
-          DeathBox(0f, 0f) ]
+          Log(0f, 32f * 6f, 100f)
+          DeathBox(32f * 5f, 32f * 6f) ]
 
     override __.Draw() =
         for object in objects do
@@ -123,6 +140,9 @@ type Playing() =
                     && object.Intersects(otherObject)
                 then
                     object.Collide(otherObject)
+
+        for object in objects do
+            object.PostUpdate()
 
 type Program() =
     inherit Scene()
