@@ -16,18 +16,24 @@ type Object(x: float32, y: float32, sprite: Image) =
     default this.Draw() =
         Graphics.Draw(this.Sprite, this.X, this.Y, 0f, 1f, 1f, 0f, 0f)
 
+type HorizontalMover(x, y, moveSpeed, sprite) =
+    inherit Object(x, y, sprite)
+
+    override object.Update(dt) =
+        object.X <- object.X + moveSpeed * dt
+        let objectWidth = object.Sprite.GetWidth() |> float32
+
+        if object.X < -objectWidth then
+            object.X <- float32 windowWidth + objectWidth
+
+        if object.X > float32 windowWidth + objectWidth then
+            object.X <- -objectWidth |> float32
+
 type Car(x, y, moveSpeed) =
-    inherit Object(x, y, Graphics.NewImage("media/sprites/doge.png"))
+    inherit HorizontalMover(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
 
-    override car.Update(dt) =
-        car.X <- car.X + moveSpeed * dt
-        let carWidth = car.Sprite.GetWidth() |> float32
-
-        if car.X < -carWidth then
-            car.X <- float32 windowWidth + carWidth
-
-        if car.X > float32 windowWidth + carWidth then
-            car.X <- -carWidth |> float32
+type Log(x, y, moveSpeed) =
+    inherit HorizontalMover(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
 
 type Doge() =
     inherit Object(float32 windowWidth / 2f,
@@ -50,7 +56,9 @@ type Playing() =
     let objects : Object list =
         [ doge
           Car(0f, 0f, 100f)
-          Car(0f, 32f, -200f) ]
+          Car(0f, 32f, -200f)
+          Log(0f, 32f * 5f, -100f)
+          Log(0f, 32f * 6f, 200f) ]
 
     override __.Draw() =
         for object in objects do
