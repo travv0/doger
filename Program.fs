@@ -10,7 +10,7 @@ type Doge() =
     inherit Scene()
 
     let mutable x, y =
-        (float32 windowWidth / 2f, float32 windowHeight - tileSize)
+        float32 windowWidth / 2f, float32 windowHeight - tileSize
 
     let image =
         Graphics.NewImage("media/sprites/doge.png")
@@ -20,7 +20,7 @@ type Doge() =
     override __.Draw() =
         Graphics.Draw(image, x, y, 0f, 1f, 1f, 0f, 0f)
 
-    override __.KeyPressed(key, _, isRepeat) =
+    override __.KeyPressed(key, _, _) =
         match key with
         | KeyConstant.Right -> x <- x + tileSize
         | KeyConstant.Left -> x <- x - tileSize
