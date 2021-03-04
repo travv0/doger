@@ -45,6 +45,9 @@ type Playing() =
             object.Draw()
 
     override __.KeyPressed(key, scancode, isRepeat) =
+        if key = KeyConstant.Escape then
+            Event.Quit(0)
+
         for object in objects do
             object.KeyPressed(key, scancode, isRepeat)
 
