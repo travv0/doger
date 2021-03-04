@@ -12,7 +12,9 @@ type Doge() =
     let mutable x, y =
         (float32 windowWidth / 2f, float32 windowHeight - tileSize)
 
-    let image = Graphics.NewImage("doge.png")
+    let image =
+        Graphics.NewImage("media/sprites/doge.png")
+
     let moveSpeed = 32
 
     override __.Draw() =
