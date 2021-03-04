@@ -51,7 +51,7 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
     abstract member PostUpdate : unit -> unit
     default __.PostUpdate() = ()
 
-type DeathBox(x, y) =
+type Water(x, y) =
     inherit GameObject(x, y, Some(Graphics.NewImage("media/sprites/doge.png")))
 
 type HorizontalMover(x, y, moveSpeed, sprite) =
@@ -78,7 +78,7 @@ type Doge() =
                        Some(Graphics.NewImage("media/sprites/doge.png")))
 
     let mutable isOnLog = false
-    let mutable isOnDeathBox = false
+    let mutable isOnWater = false
 
     override doge.KeyPressed(key, _, _) =
         match key with
@@ -90,19 +90,19 @@ type Doge() =
 
     override __.Update(dt) =
         isOnLog <- false
-        isOnDeathBox <- false
+        isOnWater <- false
 
     override __.Collide(otherObject) =
         match otherObject with
         | :? Car -> printfn "doge smoosh"
         | :? Log -> isOnLog <- true
-        | :? DeathBox -> isOnDeathBox <- true
+        | :? Water -> isOnWater <- true
         | _ -> ()
 
     override __.PostUpdate() =
-        if isOnDeathBox && not isOnLog then
+        if isOnWater && not isOnLog then
             printfn "doge ded"
-        else if isOnLog && isOnDeathBox then
+        else if isOnLog && isOnWater then
             printfn "doge safe on log"
 
 type Playing() =
@@ -116,7 +116,7 @@ type Playing() =
           Car(0f, 32f, -200f)
           Log(0f, 32f * 5f, -100f)
           Log(0f, 32f * 6f, 100f)
-          DeathBox(32f * 5f, 32f * 6f) ]
+          Water(32f * 5f, 32f * 6f) ]
 
     override __.Draw() =
         for object in objects do
