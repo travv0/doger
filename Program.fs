@@ -7,7 +7,7 @@ let tileSize = 32f
 let (windowWidth, windowHeight) = (640, 480)
 
 [<AbstractClass>]
-type Object(x: float32, y: float32, sprite: Drawable) =
+type Object(x: float32, y: float32, sprite: Image) =
     inherit Scene()
     member val X = x with get, set
     member val Y = y with get, set
@@ -19,7 +19,15 @@ type Object(x: float32, y: float32, sprite: Drawable) =
 type Car(x, y, moveSpeed) =
     inherit Object(x, y, Graphics.NewImage("media/sprites/doge.png"))
 
-    override car.Update(dt) = car.X <- car.X + moveSpeed * dt
+    override car.Update(dt) =
+        car.X <- car.X + moveSpeed * dt
+        let carWidth = car.Sprite.GetWidth() |> float32
+
+        if car.X < -carWidth then
+            car.X <- float32 windowWidth + carWidth
+
+        if car.X > float32 windowWidth + carWidth then
+            car.X <- -carWidth |> float32
 
 type Doge() =
     inherit Object(float32 windowWidth / 2f,
@@ -38,7 +46,11 @@ type Playing() =
     inherit Scene()
 
     let doge = Doge()
-    let objects : Object list = [ doge; Car(0f, 0f, 40f) ]
+
+    let objects : Object list =
+        [ doge
+          Car(0f, 0f, 100f)
+          Car(0f, 32f, -200f) ]
 
     override __.Draw() =
         for object in objects do
