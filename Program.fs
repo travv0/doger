@@ -108,15 +108,19 @@ type Doge() =
 type Playing() =
     inherit Scene()
 
+    let makeRiver y : GameObject list =
+        [ for i in 0 .. windowWidth / int tileSize -> Water(tileSize * float32 i, y) ]
+
     let doge = Doge()
 
     let objects : GameObject list =
-        [ doge
-          Car(0f, 0f, 100f)
-          Car(0f, 32f, -200f)
-          Log(0f, 32f * 5f, -100f)
-          Log(0f, 32f * 6f, 100f)
-          Water(32f * 5f, 32f * 6f) ]
+        List.concat [ makeRiver (32f * 5f)
+                      makeRiver (32f * 6f)
+                      [ Log(0f, 32f * 5f, -100f)
+                        Log(0f, 32f * 6f, 100f)
+                        Car(0f, 0f, 100f)
+                        Car(0f, 32f, -200f)
+                        doge ] ]
 
     override __.Draw() =
         for object in objects do
