@@ -71,15 +71,23 @@ type HorizontalMover(x, y, moveSpeed, sprite) =
 type Car(x, y, moveSpeed) =
     inherit HorizontalMover(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
 
+type WaterFloater(x, y, moveSpeed, sprite) =
+    inherit HorizontalMover(x, y, moveSpeed, sprite)
+
 type Log(x, y, moveSpeed) =
-    inherit HorizontalMover(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+    inherit WaterFloater(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+
+type Turtle(x, y, moveSpeed) =
+    inherit WaterFloater(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+
+    member val IsUnderwater = false with get, set
 
 type Doge() =
     inherit GameObject(float32 windowWidth / 2f,
                        float32 windowHeight - tileSize,
                        Some(Graphics.NewImage("media/sprites/doge.png")))
 
-    let mutable onLog : Log option = None
+    let mutable onLog : WaterFloater option = None
     let mutable isOnWater = false
 
     override doge.KeyPressed(key, _, _) =
@@ -101,7 +109,8 @@ type Doge() =
     override __.Collide(otherObject) =
         match otherObject with
         | :? Car -> printfn "doge smoosh"
-        | :? Log as log -> onLog <- Some log
+        | :? Log as log -> onLog <- Some(log :> WaterFloater)
+        | :? Turtle as turtle when not turtle.IsUnderwater -> onLog <- Some(turtle :> WaterFloater)
         | :? Water -> isOnWater <- true
         | _ -> ()
 
@@ -121,7 +130,7 @@ type Playing() =
         List.concat [ makeRiver (32f * 5f)
                       makeRiver (32f * 6f)
                       [ Log(0f, 32f * 5f, -100f)
-                        Log(0f, 32f * 6f, 100f)
+                        Turtle(0f, 32f * 6f, 100f)
                         Car(0f, 0f, 100f)
                         Car(0f, 32f, -200f)
                         doge ] ]
