@@ -6,28 +6,27 @@ let tileSize = 32f
 
 let (windowWidth, windowHeight) = (640, 480)
 
-[<AbstractClass>]
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
 
     member val X = x with get, set
     member val Y = y with get, set
 
-    member __.Width =
+    member val Width =
         match sprite with
         | Some sprite -> sprite.GetWidth() |> float32
         | None -> tileSize
 
-    member __.Height =
+    member val Height =
         match sprite with
         | Some sprite -> sprite.GetHeight() |> float32
         | None -> tileSize
 
-    member __.Sprite = sprite
+    member val Sprite = sprite
 
-    default this.Draw() =
-        match this.Sprite with
-        | Some sprite -> Graphics.Draw(sprite, this.X, this.Y, 0f, 1f, 1f, 0f, 0f)
+    default object.Draw() =
+        match object.Sprite with
+        | Some sprite -> Graphics.Draw(sprite, object.X, object.Y, 0f, 1f, 1f, 0f, 0f)
         | None -> ()
 
     member object.Intersects(otherObject: GameObject) =
