@@ -1,10 +1,21 @@
 module Main
 
+open System.IO
 open Love
 
+let spritesPath = "media/sprites/"
+
+let dogeSprite =
+    Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
+
+[<Literal>]
 let tileSize = 32f
 
-let (windowWidth, windowHeight) = (640, 480)
+[<Literal>]
+let windowWidth = 640
+
+[<Literal>]
+let windowHeight = 480
 
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
@@ -44,14 +55,14 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
                 && corner.Y >= otherObject.Y
                 && corner.Y < otherObject.Y + otherObject.Height)
 
-    abstract member Collide : GameObject -> unit
+    abstract Collide : GameObject -> unit
     default __.Collide(_) = ()
 
-    abstract member PostUpdate : unit -> unit
+    abstract PostUpdate : unit -> unit
     default __.PostUpdate() = ()
 
 type Water(x, y) =
-    inherit GameObject(x, y, Some(Graphics.NewImage("media/sprites/doge.png")))
+    inherit GameObject(x, y, Some(dogeSprite))
 
 type HorizontalMover(x, y, moveSpeed, sprite) =
     inherit GameObject(x, y, Some sprite)
@@ -68,23 +79,21 @@ type HorizontalMover(x, y, moveSpeed, sprite) =
             object.X <- -object.Width
 
 type Car(x, y, moveSpeed) =
-    inherit HorizontalMover(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+    inherit HorizontalMover(x, y, moveSpeed, dogeSprite)
 
 type WaterFloater(x, y, moveSpeed, sprite) =
     inherit HorizontalMover(x, y, moveSpeed, sprite)
 
 type Log(x, y, moveSpeed) =
-    inherit WaterFloater(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+    inherit WaterFloater(x, y, moveSpeed, dogeSprite)
 
 type Turtle(x, y, moveSpeed) =
-    inherit WaterFloater(x, y, moveSpeed, Graphics.NewImage("media/sprites/doge.png"))
+    inherit WaterFloater(x, y, moveSpeed, dogeSprite)
 
     member val IsUnderwater = false with get, set
 
 type Doge() =
-    inherit GameObject(float32 windowWidth / 2f,
-                       float32 windowHeight - tileSize,
-                       Some(Graphics.NewImage("media/sprites/doge.png")))
+    inherit GameObject(float32 windowWidth / 2f, float32 windowHeight - tileSize, Some(dogeSprite))
 
     let mutable onLog : WaterFloater option = None
     let mutable isOnWater = false
@@ -120,14 +129,16 @@ type Doge() =
 type Playing() =
     inherit Scene()
 
-    let makeRiver y : GameObject list =
+    let makeRiver y =
         [ for i in 0 .. windowWidth / int tileSize -> Water(tileSize * float32 i, y) ]
 
     let doge = Doge()
 
     let objects : GameObject list =
         List.concat [ makeRiver (32f * 5f)
+                      |> List.map (fun w -> w :> GameObject)
                       makeRiver (32f * 6f)
+                      |> List.map (fun w -> w :> GameObject)
                       [ Log(0f, 32f * 5f, -100f)
                         Turtle(0f, 32f * 6f, 100f)
                         Car(0f, 0f, 100f)
