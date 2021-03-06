@@ -3,11 +3,6 @@ module Main
 open System.IO
 open Love
 
-let spritesPath = "media/sprites/"
-
-let dogeSprite =
-    Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
-
 [<Literal>]
 let tileSize = 32f
 
@@ -16,6 +11,13 @@ let windowWidth = 640
 
 [<Literal>]
 let windowHeight = 480
+
+Boot.Init(BootConfig(WindowTitle = "Doger", WindowWidth = windowWidth, WindowHeight = windowHeight))
+
+let spritesPath = "media/sprites/"
+
+let dogeSprite =
+    Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
 
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
@@ -33,7 +35,7 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
         | Some sprite -> sprite.GetHeight() |> float32
         | None -> tileSize
 
-    member val Sprite = sprite
+    member val Sprite = sprite with get, set
 
     default object.Draw() =
         match object.Sprite with
@@ -58,11 +60,8 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
     abstract Collide : GameObject -> unit
     default __.Collide(_) = ()
 
-    abstract PostUpdate : unit -> unit
-    default __.PostUpdate() = ()
-
 type Water(x, y) =
-    inherit GameObject(x, y, Some(dogeSprite))
+    inherit GameObject(x, y, Some dogeSprite)
 
 type HorizontalMover(x, y, moveSpeed, sprite) =
     inherit GameObject(x, y, Some sprite)
@@ -84,16 +83,35 @@ type Car(x, y, moveSpeed) =
 type WaterFloater(x, y, moveSpeed, sprite) =
     inherit HorizontalMover(x, y, moveSpeed, sprite)
 
-type Log(x, y, moveSpeed) =
-    inherit WaterFloater(x, y, moveSpeed, dogeSprite)
+type Log(x, y, moveSpeed, sprite) =
+    inherit WaterFloater(x, y, moveSpeed, sprite)
 
-type Turtle(x, y, moveSpeed) =
-    inherit WaterFloater(x, y, moveSpeed, dogeSprite)
+type Turtle(x, y, moveSpeed, sprite) =
+    inherit WaterFloater(x, y, moveSpeed, sprite)
+
+    let toggleTime = 3f
+    let mutable elapsedTime = 0f
 
     member val IsUnderwater = false with get, set
 
+    override turtle.Update(dt) =
+        if elapsedTime >= toggleTime then
+            turtle.IsUnderwater <- not turtle.IsUnderwater
+
+            turtle.Sprite <-
+                if turtle.IsUnderwater then
+                    None
+                else
+                    Some sprite
+
+            elapsedTime <- 0f
+        else
+            elapsedTime <- elapsedTime + dt
+
+        base.Update(dt)
+
 type Doge() =
-    inherit GameObject(float32 windowWidth / 2f, float32 windowHeight - tileSize, Some(dogeSprite))
+    inherit GameObject(float32 windowWidth / 2f, float32 windowHeight - tileSize, Some dogeSprite)
 
     let mutable onLog : WaterFloater option = None
     let mutable isOnWater = false
@@ -107,6 +125,9 @@ type Doge() =
         | _ -> ()
 
     override doge.Update(dt) =
+        if isOnWater && onLog.IsNone then
+            printfn "doge ded"
+
         match onLog with
         | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
         | None -> ()
@@ -122,10 +143,6 @@ type Doge() =
         | :? Water -> isOnWater <- true
         | _ -> ()
 
-    override __.PostUpdate() =
-        if isOnWater && onLog.IsNone then
-            printfn "doge ded"
-
 type Playing() =
     inherit Scene()
 
@@ -139,8 +156,8 @@ type Playing() =
                       |> List.map (fun w -> w :> GameObject)
                       makeRiver (32f * 6f)
                       |> List.map (fun w -> w :> GameObject)
-                      [ Log(0f, 32f * 5f, -100f)
-                        Turtle(0f, 32f * 6f, 100f)
+                      [ Log(0f, 32f * 5f, -100f, dogeSprite)
+                        Turtle(0f, 32f * 6f, 100f, dogeSprite)
                         Car(0f, 0f, 100f)
                         Car(0f, 32f, -200f)
                         doge ] ]
@@ -168,9 +185,6 @@ type Playing() =
                 then
                     object.Collide(otherObject)
 
-        for object in objects do
-            object.PostUpdate()
-
 type Program() =
     inherit Scene()
 
@@ -185,7 +199,6 @@ type Program() =
 
 [<EntryPoint>]
 let main _ =
-    Boot.Init(BootConfig(WindowTitle = "Doger", WindowWidth = windowWidth, WindowHeight = windowHeight))
     Boot.Run(Program())
 
     0
