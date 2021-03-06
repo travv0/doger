@@ -57,6 +57,8 @@ type Water(x, y) =
 type HorizontalMover(x, y, moveSpeed, sprite) =
     inherit GameObject(x, y, Some sprite)
 
+    member val MoveSpeed = moveSpeed
+
     override object.Update(dt) =
         object.X <- object.X + moveSpeed * dt
 
@@ -77,7 +79,7 @@ type Doge() =
                        float32 windowHeight - tileSize,
                        Some(Graphics.NewImage("media/sprites/doge.png")))
 
-    let mutable isOnLog = false
+    let mutable onLog : Log option = None
     let mutable isOnWater = false
 
     override doge.KeyPressed(key, _, _) =
@@ -88,22 +90,24 @@ type Doge() =
         | KeyConstant.Down -> doge.Y <- doge.Y + tileSize
         | _ -> ()
 
-    override __.Update(dt) =
-        isOnLog <- false
+    override doge.Update(dt) =
+        match onLog with
+        | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
+        | None -> ()
+
+        onLog <- None
         isOnWater <- false
 
     override __.Collide(otherObject) =
         match otherObject with
         | :? Car -> printfn "doge smoosh"
-        | :? Log -> isOnLog <- true
+        | :? Log as log -> onLog <- Some log
         | :? Water -> isOnWater <- true
         | _ -> ()
 
     override __.PostUpdate() =
-        if isOnWater && not isOnLog then
+        if isOnWater && onLog.IsNone then
             printfn "doge ded"
-        else if isOnLog && isOnWater then
-            printfn "doge safe on log"
 
 type Playing() =
     inherit Scene()
