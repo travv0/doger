@@ -152,14 +152,14 @@ type Playing() =
     let doge = Doge()
 
     let objects : GameObject list =
-        List.concat [ makeRiver (32f * 5f)
+        List.concat [ makeRiver (tileSize * 5f)
                       |> List.map (fun w -> w :> GameObject)
-                      makeRiver (32f * 6f)
+                      makeRiver (tileSize * 6f)
                       |> List.map (fun w -> w :> GameObject)
-                      [ Log(0f, 32f * 5f, -100f, dogeSprite)
-                        Turtle(0f, 32f * 6f, 100f, dogeSprite)
+                      [ Log(0f, tileSize * 5f, -100f, dogeSprite)
+                        Turtle(0f, tileSize * 6f, 100f, dogeSprite)
                         Car(0f, 0f, 100f)
-                        Car(0f, 32f, -200f)
+                        Car(0f, tileSize, -200f)
                         doge ] ]
 
     override __.Draw() =
