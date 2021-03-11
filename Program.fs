@@ -7,7 +7,7 @@ open Love
 let tileSize = 32f
 
 [<Literal>]
-let windowWidth = 640
+let windowWidth = 480
 
 [<Literal>]
 let windowHeight = 480
@@ -77,8 +77,8 @@ type HorizontalMover(x, y, moveSpeed, sprite) =
         if object.X > float32 windowWidth + object.Width then
             object.X <- -object.Width
 
-type Car(x, y, moveSpeed) =
-    inherit HorizontalMover(x, y, moveSpeed, dogeSprite)
+type Car(x, y, moveSpeed, sprite) =
+    inherit HorizontalMover(x, y, moveSpeed, sprite)
 
 type WaterFloater(x, y, moveSpeed, sprite) =
     inherit HorizontalMover(x, y, moveSpeed, sprite)
@@ -86,27 +86,35 @@ type WaterFloater(x, y, moveSpeed, sprite) =
 type Log(x, y, moveSpeed, sprite) =
     inherit WaterFloater(x, y, moveSpeed, sprite)
 
-type Turtle(x, y, moveSpeed, sprite) =
-    inherit WaterFloater(x, y, moveSpeed, sprite)
+type Turtle(x, y, moveSpeed, sinkTimer, sprite) =
+    inherit WaterFloater(x, y, -moveSpeed, sprite)
 
-    let toggleTime = 3f
     let mutable elapsedTime = 0f
 
     member val IsUnderwater = false with get, set
 
     override turtle.Update(dt) =
-        if elapsedTime >= toggleTime then
-            turtle.IsUnderwater <- not turtle.IsUnderwater
-
-            turtle.Sprite <-
+        match sinkTimer with
+        | Some sinkTimer ->
+            let toggleTime : float32 =
                 if turtle.IsUnderwater then
-                    None
+                    sinkTimer / 4f
                 else
-                    Some sprite
+                    sinkTimer
 
-            elapsedTime <- 0f
-        else
-            elapsedTime <- elapsedTime + dt
+            if elapsedTime >= toggleTime then
+                turtle.IsUnderwater <- not turtle.IsUnderwater
+
+                turtle.Sprite <-
+                    if turtle.IsUnderwater then
+                        None
+                    else
+                        Some sprite
+
+                elapsedTime <- 0f
+            else
+                elapsedTime <- elapsedTime + dt
+        | None -> ()
 
         base.Update(dt)
 
@@ -146,21 +154,57 @@ type Doge() =
 type Playing() =
     inherit Scene()
 
-    let makeRiver y =
-        [ for i in 0 .. windowWidth / int tileSize -> Water(tileSize * float32 i, y) ]
+    let makeRiver y : GameObject list =
+        [ for i in 0 .. windowWidth / int tileSize -> Water(tileSize * float32 i, y * tileSize) ]
+
+    let makeLog x y speed width : GameObject list =
+        [ for i in 0 .. width - 1 -> Log(x * tileSize + float32 i * tileSize, y * tileSize, speed, dogeSprite) ]
+
+    let makeTurtles x y speed width sinkTimer : GameObject list =
+        [ for i in 0 .. width - 1 ->
+              Turtle(x * tileSize + float32 i * tileSize, y * tileSize, speed, sinkTimer, dogeSprite) ]
+
+    let makeCar x y speed sprite : GameObject list =
+        [ Car(x * tileSize, y * tileSize, speed, sprite) ]
 
     let doge = Doge()
 
     let objects : GameObject list =
-        List.concat [ makeRiver (tileSize * 5f)
-                      |> List.map (fun w -> w :> GameObject)
-                      makeRiver (tileSize * 6f)
-                      |> List.map (fun w -> w :> GameObject)
-                      [ Log(0f, tileSize * 5f, -100f, dogeSprite)
-                        Turtle(0f, tileSize * 6f, 100f, dogeSprite)
-                        Car(0f, 0f, 100f)
-                        Car(0f, tileSize, -200f)
-                        doge ] ]
+        List.concat [ makeRiver 3f
+                      makeRiver 4f
+                      makeRiver 5f
+                      makeRiver 6f
+                      makeRiver 7f
+                      makeLog 0f 3f 100f 3
+                      makeLog 4.5f 3f 100f 3
+                      makeLog 9f 3f 100f 3
+                      makeTurtles 0f 4f 100f 2 None
+                      makeTurtles 3.5f 4f 100f 2 None
+                      makeTurtles 7f 4f 100f 2 (Some 2f)
+                      makeLog 0f 5f 150f 4
+                      makeLog 6f 5f 150f 4
+                      makeLog 12f 5f 150f 4
+                      makeLog 0f 6f 50f 2
+                      makeLog 4f 6f 50f 2
+                      makeLog 8f 6f 50f 2
+                      makeLog 12f 6f 50f 2
+                      makeTurtles 0f 7f 100f 3 None
+                      makeTurtles 4f 7f 100f 3 None
+                      makeTurtles 8f 7f 100f 3 (Some 3f)
+                      makeTurtles 12f 7f 100f 3 None
+                      makeCar 0f 9f -50f dogeSprite
+                      makeCar 5f 9f -50f dogeSprite
+                      makeCar 0f 10f 300f dogeSprite
+                      makeCar 0f 11f -100f dogeSprite
+                      makeCar 4f 11f -100f dogeSprite
+                      makeCar 8f 11f -100f dogeSprite
+                      makeCar 0f 12f 75f dogeSprite
+                      makeCar 5f 12f 75f dogeSprite
+                      makeCar 10f 12f 75f dogeSprite
+                      makeCar 6f 13f -100f dogeSprite
+                      makeCar 11f 13f -100f dogeSprite
+                      makeCar 16f 13f -100f dogeSprite
+                      [ doge ] ]
 
     override __.Draw() =
         for object in objects do
