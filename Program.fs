@@ -121,27 +121,53 @@ type Turtle(x, y, moveSpeed, sinkTimer, sprite) =
 type Doge() =
     inherit GameObject(float32 windowWidth / 2f, float32 windowHeight - tileSize, Some dogeSprite)
 
+    let moveSpeed = 300f
+
     let mutable onLog : WaterFloater option = None
     let mutable isOnWater = false
+    let mutable goalPos = None
 
     override doge.KeyPressed(key, _, _) =
-        match key with
-        | KeyConstant.Right -> doge.X <- doge.X + tileSize
-        | KeyConstant.Left -> doge.X <- doge.X - tileSize
-        | KeyConstant.Up -> doge.Y <- doge.Y - tileSize
-        | KeyConstant.Down -> doge.Y <- doge.Y + tileSize
-        | _ -> ()
+        if goalPos.IsNone then
+            match key with
+            | KeyConstant.Right -> goalPos <- Some {| X = doge.X + tileSize; Y = doge.Y |}
+            | KeyConstant.Left -> goalPos <- Some {| X = doge.X - tileSize; Y = doge.Y |}
+            | KeyConstant.Up -> goalPos <- Some {| X = doge.X; Y = doge.Y - tileSize |}
+            | KeyConstant.Down -> goalPos <- Some {| X = doge.X; Y = doge.Y + tileSize |}
+            | _ -> ()
 
     override doge.Update(dt) =
-        if isOnWater && onLog.IsNone then
-            printfn "doge ded"
+        let moveSpeed = moveSpeed * dt
 
-        match onLog with
-        | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
-        | None -> ()
+        match goalPos with
+        | None ->
+            if isOnWater && onLog.IsNone then
+                printfn "doge ded"
 
-        onLog <- None
-        isOnWater <- false
+            match onLog with
+            | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
+            | None -> ()
+
+            onLog <- None
+            isOnWater <- false
+        | Some goal ->
+            if goal.X > doge.X then
+                doge.X <- doge.X + moveSpeed
+            else if goal.X < doge.X then
+                doge.X <- doge.X - moveSpeed
+            else if goal.Y > doge.Y then
+                doge.Y <- doge.Y + moveSpeed
+            else if goal.Y < doge.Y then
+                doge.Y <- doge.Y - moveSpeed
+
+            if goal.X - doge.X |> abs < moveSpeed then
+                doge.X <- goal.X
+
+            if goal.Y - doge.Y |> abs < moveSpeed then
+                doge.Y <- goal.Y
+
+            if doge.X = goal.X && doge.Y = goal.Y then
+                goalPos <- None
 
     override __.Collide(otherObject) =
         match otherObject with
