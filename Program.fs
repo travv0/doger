@@ -19,6 +19,8 @@ let spritesPath = "media/sprites/"
 let dogeSprite =
     Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
 
+let mutable dogeLives = 3
+
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
 
@@ -132,11 +134,9 @@ type Doge() as doge =
     let mutable goalPos = None
 
     let die () =
-        doge.Lives <- doge.Lives - 1
+        dogeLives <- dogeLives - 1
         doge.X <- startPos.X
         doge.Y <- startPos.Y
-
-    member val Lives = 3 with get, set
 
     override doge.KeyPressed(key, _, _) =
         if goalPos.IsNone then
@@ -188,6 +188,8 @@ type Doge() as doge =
             | :? Water -> isOnWater <- true
             | _ -> ()
 
+let font = Graphics.NewFont(16)
+
 type Playing() =
     inherit Scene()
 
@@ -206,10 +208,8 @@ type Playing() =
 
     let doge = Doge()
 
-    let font = Graphics.NewFont(16)
-
     let lives =
-        Graphics.NewText(font, sprintf "Lives: %d" doge.Lives)
+        Graphics.NewText(font, sprintf "Lives: %d" dogeLives)
 
     let objects : GameObject list =
         List.concat [ makeRiver 3f
@@ -255,9 +255,6 @@ type Playing() =
         Graphics.Draw(lives)
 
     override __.KeyPressed(key, scancode, isRepeat) =
-        if key = KeyConstant.Escape then
-            Event.Quit(0)
-
         for object in objects do
             object.KeyPressed(key, scancode, isRepeat)
 
@@ -273,19 +270,38 @@ type Playing() =
                 then
                     object.Collide(otherObject)
 
-        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" doge.Lives))
+        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" dogeLives))
+
+type GameOver() =
+    inherit Scene()
+
+    let text =
+        Graphics.NewText(font, "Game Over\nPress R to restart")
+
+    override __.Draw() = Graphics.Draw(text)
 
 type Program() =
     inherit Scene()
 
     let mutable state = Playing() :> Scene
 
+    let reset () =
+        dogeLives <- 3
+        state <- Playing()
+
     override __.Draw() = state.Draw()
 
-    override __.Update(dt) = state.Update(dt)
+    override __.Update(dt) =
+        state.Update(dt)
+
+        if dogeLives < 0 then
+            state <- GameOver()
 
     override __.KeyPressed(key, scancode, isRepeat) =
-        state.KeyPressed(key, scancode, isRepeat)
+        match key with
+        | KeyConstant.Escape -> Event.Quit(0)
+        | KeyConstant.R -> reset ()
+        | _ -> state.KeyPressed(key, scancode, isRepeat)
 
 [<EntryPoint>]
 let main _ =
