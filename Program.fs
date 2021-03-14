@@ -118,14 +118,25 @@ type Turtle(x, y, moveSpeed, sinkTimer, sprite) =
 
         base.Update(dt)
 
-type Doge() =
-    inherit GameObject(float32 windowWidth / 2f, float32 windowHeight - tileSize, Some dogeSprite)
+let startPos =
+    {| X = float32 windowWidth / 2f
+       Y = float32 windowHeight - tileSize |}
+
+type Doge() as doge =
+    inherit GameObject(startPos.X, startPos.Y, Some dogeSprite)
 
     let moveSpeed = 300f
 
     let mutable onLog : WaterFloater option = None
     let mutable isOnWater = false
     let mutable goalPos = None
+
+    let die () =
+        doge.Lives <- doge.Lives - 1
+        doge.X <- startPos.X
+        doge.Y <- startPos.Y
+
+    member val Lives = 3 with get, set
 
     override doge.KeyPressed(key, _, _) =
         if goalPos.IsNone then
@@ -141,8 +152,7 @@ type Doge() =
 
         match goalPos with
         | None ->
-            if isOnWater && onLog.IsNone then
-                printfn "doge ded"
+            if isOnWater && onLog.IsNone then die ()
 
             match onLog with
             | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
@@ -170,12 +180,13 @@ type Doge() =
                 goalPos <- None
 
     override __.Collide(otherObject) =
-        match otherObject with
-        | :? Car -> printfn "doge smoosh"
-        | :? Log as log -> onLog <- Some(log :> WaterFloater)
-        | :? Turtle as turtle when not turtle.IsUnderwater -> onLog <- Some(turtle :> WaterFloater)
-        | :? Water -> isOnWater <- true
-        | _ -> ()
+        if goalPos.IsNone then
+            match otherObject with
+            | :? Car -> die ()
+            | :? Log as log -> onLog <- Some(log :> WaterFloater)
+            | :? Turtle as turtle when not turtle.IsUnderwater -> onLog <- Some(turtle :> WaterFloater)
+            | :? Water -> isOnWater <- true
+            | _ -> ()
 
 type Playing() =
     inherit Scene()
@@ -194,6 +205,11 @@ type Playing() =
         [ Car(x * tileSize, y * tileSize, speed, sprite) ]
 
     let doge = Doge()
+
+    let font = Graphics.NewFont(16)
+
+    let lives =
+        Graphics.NewText(font, sprintf "Lives: %d" doge.Lives)
 
     let objects : GameObject list =
         List.concat [ makeRiver 3f
@@ -236,6 +252,8 @@ type Playing() =
         for object in objects do
             object.Draw()
 
+        Graphics.Draw(lives)
+
     override __.KeyPressed(key, scancode, isRepeat) =
         if key = KeyConstant.Escape then
             Event.Quit(0)
@@ -254,6 +272,8 @@ type Playing() =
                     && object.Intersects(otherObject)
                 then
                     object.Collide(otherObject)
+
+        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" doge.Lives))
 
 type Program() =
     inherit Scene()
