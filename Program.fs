@@ -156,10 +156,26 @@ type Doge() as doge =
     override doge.KeyPressed(key, _, _) =
         if goalPos.IsNone then
             match key with
-            | KeyConstant.Right -> goalPos <- Some {| X = doge.X + tileSize; Y = doge.Y |}
-            | KeyConstant.Left -> goalPos <- Some {| X = doge.X - tileSize; Y = doge.Y |}
-            | KeyConstant.Up -> goalPos <- Some {| X = doge.X; Y = doge.Y - tileSize |}
-            | KeyConstant.Down -> goalPos <- Some {| X = doge.X; Y = doge.Y + tileSize |}
+            | KeyConstant.Right ->
+                goalPos <-
+                    Some
+                        {| X = min (doge.X + tileSize) (float32 windowWidth - tileSize)
+                           Y = doge.Y |}
+            | KeyConstant.Left ->
+                goalPos <-
+                    Some
+                        {| X = doge.X - tileSize |> max 0f
+                           Y = doge.Y |}
+            | KeyConstant.Up ->
+                goalPos <-
+                    Some
+                        {| X = doge.X
+                           Y = doge.Y - tileSize |> max 0f |}
+            | KeyConstant.Down ->
+                goalPos <-
+                    Some
+                        {| X = doge.X
+                           Y = min (doge.Y + tileSize) (float32 windowHeight - tileSize) |}
             | _ -> ()
 
     override doge.Update(dt) =
@@ -170,7 +186,11 @@ type Doge() as doge =
             if isOnWater && onLog.IsNone then die ()
 
             match onLog with
-            | Some log -> doge.X <- doge.X + log.MoveSpeed * dt
+            | Some log ->
+                if log.MoveSpeed > 0f
+                   && doge.X < float32 windowWidth - tileSize
+                   || log.MoveSpeed < 0f && doge.X > 0f then
+                    doge.X <- doge.X + log.MoveSpeed * dt
             | None -> ()
 
             onLog <- None
