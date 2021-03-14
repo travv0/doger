@@ -19,20 +19,22 @@ let spritesPath = "media/sprites/"
 let dogeSprite =
     Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
 
-let mutable dogeLives = 3
-
 type GameObject(x: float32, y: float32, sprite: Image option) =
     inherit Scene()
 
     member val X = x with get, set
     member val Y = y with get, set
 
-    member val Width =
+    abstract Width : float32
+
+    default __.Width =
         match sprite with
         | Some sprite -> sprite.GetWidth() |> float32
         | None -> tileSize
 
-    member val Height =
+    abstract Height : float32
+
+    default __.Height =
         match sprite with
         | Some sprite -> sprite.GetHeight() |> float32
         | None -> tileSize
@@ -61,6 +63,9 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
 
     abstract Collide : GameObject -> unit
     default __.Collide(_) = ()
+
+type Wall(x, y) =
+    inherit GameObject(x, y, Some dogeSprite)
 
 type Water(x, y) =
     inherit GameObject(x, y, Some dogeSprite)
@@ -124,6 +129,11 @@ let startPos =
     {| X = float32 windowWidth / 2f
        Y = float32 windowHeight - tileSize |}
 
+type Goal(x, y) =
+    inherit GameObject(x, y, None)
+
+    member val IsAchieved = false with get, set
+
 type Doge() as doge =
     inherit GameObject(startPos.X, startPos.Y, Some dogeSprite)
 
@@ -133,10 +143,15 @@ type Doge() as doge =
     let mutable isOnWater = false
     let mutable goalPos = None
 
-    let die () =
-        dogeLives <- dogeLives - 1
+    let resetPos () =
         doge.X <- startPos.X
         doge.Y <- startPos.Y
+
+    let die () =
+        doge.Lives <- doge.Lives - 1
+        resetPos ()
+
+    member val Lives = 6 with get, set
 
     override doge.KeyPressed(key, _, _) =
         if goalPos.IsNone then
@@ -182,13 +197,24 @@ type Doge() as doge =
     override __.Collide(otherObject) =
         if goalPos.IsNone then
             match otherObject with
-            | :? Car -> die ()
+            | :? Car
+            | :? Wall -> die ()
             | :? Log as log -> onLog <- Some(log :> WaterFloater)
             | :? Turtle as turtle when not turtle.IsUnderwater -> onLog <- Some(turtle :> WaterFloater)
             | :? Water -> isOnWater <- true
+            | :? Goal as goal when goal.IsAchieved -> die ()
+            | :? Goal as goal ->
+                goal.IsAchieved <- true
+                goal.Sprite <- Some dogeSprite
+                resetPos ()
             | _ -> ()
 
 let font = Graphics.NewFont(16)
+
+type State =
+    | Playing
+    | GameOver
+    | Victory
 
 type Playing() =
     inherit Scene()
@@ -206,13 +232,28 @@ type Playing() =
     let makeCar x y speed sprite : GameObject list =
         [ Car(x * tileSize, y * tileSize, speed, sprite) ]
 
+    let goals =
+        [ for i in 1 .. windowWidth / int tileSize - 1 do
+              if i % 2 <> 0 then
+                  yield Goal(float32 i * tileSize, 2f * tileSize) ]
+
+
+    let walls : GameObject list =
+        List.concat [ [ for i in 0 .. windowWidth / int tileSize - 1 do
+                            yield Wall(float32 i * tileSize, 1f * tileSize) ]
+                      [ for i in 0 .. windowWidth / int tileSize - 1 do
+                            if i % 2 = 0 then
+                                yield Wall(float32 i * tileSize, 2f * tileSize) ] ]
+
     let doge = Doge()
 
     let lives =
-        Graphics.NewText(font, sprintf "Lives: %d" dogeLives)
+        Graphics.NewText(font, sprintf "Lives: %d" doge.Lives)
 
     let objects : GameObject list =
-        List.concat [ makeRiver 3f
+        List.concat [ goals |> List.map (fun goal -> goal :> GameObject)
+                      walls
+                      makeRiver 3f
                       makeRiver 4f
                       makeRiver 5f
                       makeRiver 6f
@@ -248,6 +289,8 @@ type Playing() =
                       makeCar 16f 13f -100f dogeSprite
                       [ doge ] ]
 
+    member val State = State.Playing with get, set
+
     override __.Draw() =
         for object in objects do
             object.Draw()
@@ -258,7 +301,7 @@ type Playing() =
         for object in objects do
             object.KeyPressed(key, scancode, isRepeat)
 
-    override __.Update(dt) =
+    override this.Update(dt) =
         for object in objects do
             object.Update(dt)
 
@@ -270,7 +313,13 @@ type Playing() =
                 then
                     object.Collide(otherObject)
 
-        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" dogeLives))
+        if doge.Lives < 0 then
+            this.State <- GameOver
+
+        if goals |> Seq.forall (fun goal -> goal.IsAchieved) then
+            this.State <- Victory
+
+        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" doge.Lives))
 
 type GameOver() =
     inherit Scene()
@@ -280,22 +329,33 @@ type GameOver() =
 
     override __.Draw() = Graphics.Draw(text)
 
+type Victory() =
+    inherit Scene()
+
+    let text =
+        Graphics.NewText(font, "You win!\nPress R to restart")
+
+    override __.Draw() = Graphics.Draw(text)
+
 type Program() =
     inherit Scene()
 
     let mutable state = Playing() :> Scene
 
-    let reset () =
-        dogeLives <- 3
-        state <- Playing()
+    let reset () = state <- Playing()
 
     override __.Draw() = state.Draw()
 
     override __.Update(dt) =
         state.Update(dt)
 
-        if dogeLives < 0 then
-            state <- GameOver()
+        match state with
+        | :? Playing as playing ->
+            match playing.State with
+            | GameOver -> state <- GameOver()
+            | Victory -> state <- Victory()
+            | _ -> ()
+        | _ -> ()
 
     override __.KeyPressed(key, scancode, isRepeat) =
         match key with
