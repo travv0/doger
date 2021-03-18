@@ -12,14 +12,29 @@ let windowWidth = 480
 [<Literal>]
 let windowHeight = 480
 
-Boot.Init(BootConfig(WindowTitle = "Doger", WindowWidth = windowWidth, WindowHeight = windowHeight))
+Boot.Init(
+    BootConfig(
+        WindowTitle = "Doger",
+        WindowWidth = windowWidth,
+        WindowHeight = windowHeight
+    )
+)
 
 let spritesPath = "media/sprites/"
 
 let dogeSprite =
     Graphics.NewImage(Path.Join(spritesPath, "doge.png"))
 
-type GameObject(x: float32, y: float32, sprite: Image option) =
+let logLeftEndSprite =
+    Graphics.NewImage(Path.Join(spritesPath, "log_end1.png"))
+
+let logRightEndSprite =
+    Graphics.NewImage(Path.Join(spritesPath, "log_end2.png"))
+
+let logMiddleSprite =
+    Graphics.NewImage(Path.Join(spritesPath, "log_middle.png"))
+
+type GameObject(x : float32, y : float32, sprite : Image option) =
     inherit Scene()
 
     member val X = x with get, set
@@ -27,14 +42,14 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
 
     abstract Width : float32
 
-    default __.Width =
+    default _.Width =
         match sprite with
         | Some sprite -> sprite.GetWidth() |> float32
         | None -> tileSize
 
     abstract Height : float32
 
-    default __.Height =
+    default _.Height =
         match sprite with
         | Some sprite -> sprite.GetHeight() |> float32
         | None -> tileSize
@@ -43,10 +58,11 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
 
     default object.Draw() =
         match object.Sprite with
-        | Some sprite -> Graphics.Draw(sprite, object.X, object.Y, 0f, 1f, 1f, 0f, 0f)
+        | Some sprite ->
+            Graphics.Draw(sprite, object.X, object.Y, 0f, 1f, 1f, 0f, 0f)
         | None -> ()
 
-    member object.Intersects(otherObject: GameObject) =
+    member object.Intersects(otherObject : GameObject) =
         [ {| X = object.X; Y = object.Y |}
           {| X = object.X + object.Width - 1f
              Y = object.Y |}
@@ -62,7 +78,7 @@ type GameObject(x: float32, y: float32, sprite: Image option) =
                 && corner.Y < otherObject.Y + otherObject.Height)
 
     abstract Collide : GameObject -> unit
-    default __.Collide(_) = ()
+    default _.Collide _ = ()
 
 type Wall(x, y) =
     inherit GameObject(x, y, Some dogeSprite)
@@ -159,7 +175,10 @@ type Doge() as doge =
             | KeyConstant.Right ->
                 goalPos <-
                     Some
-                        {| X = min (doge.X + tileSize) (float32 windowWidth - tileSize)
+                        {| X =
+                               min
+                                   (doge.X + tileSize)
+                                   (float32 windowWidth - tileSize)
                            Y = doge.Y |}
             | KeyConstant.Left ->
                 goalPos <-
@@ -175,7 +194,10 @@ type Doge() as doge =
                 goalPos <-
                     Some
                         {| X = doge.X
-                           Y = min (doge.Y + tileSize) (float32 windowHeight - tileSize) |}
+                           Y =
+                               min
+                                   (doge.Y + tileSize)
+                                   (float32 windowHeight - tileSize) |}
             | _ -> ()
 
     override doge.Update(dt) =
@@ -198,11 +220,11 @@ type Doge() as doge =
         | Some goal ->
             if goal.X > doge.X then
                 doge.X <- doge.X + moveSpeed
-            else if goal.X < doge.X then
+            elif goal.X < doge.X then
                 doge.X <- doge.X - moveSpeed
-            else if goal.Y > doge.Y then
+            elif goal.Y > doge.Y then
                 doge.Y <- doge.Y + moveSpeed
-            else if goal.Y < doge.Y then
+            elif goal.Y < doge.Y then
                 doge.Y <- doge.Y - moveSpeed
 
             if goal.X - doge.X |> abs < moveSpeed then
@@ -214,13 +236,14 @@ type Doge() as doge =
             if doge.X = goal.X && doge.Y = goal.Y then
                 goalPos <- None
 
-    override __.Collide(otherObject) =
+    override _.Collide(otherObject) =
         if goalPos.IsNone then
             match otherObject with
             | :? Car
             | :? Wall -> die ()
             | :? Log as log -> onLog <- Some(log :> WaterFloater)
-            | :? Turtle as turtle when not turtle.IsUnderwater -> onLog <- Some(turtle :> WaterFloater)
+            | :? Turtle as turtle when not turtle.IsUnderwater ->
+                onLog <- Some(turtle :> WaterFloater)
             | :? Water -> isOnWater <- true
             | :? Goal as goal when goal.IsAchieved -> die ()
             | :? Goal as goal ->
@@ -240,14 +263,32 @@ type Playing() =
     inherit Scene()
 
     let makeRiver y : GameObject list =
-        [ for i in 0 .. windowWidth / int tileSize -> Water(tileSize * float32 i, y * tileSize) ]
+        [ for i in 0 .. windowWidth / int tileSize ->
+              Water(tileSize * float32 i, y * tileSize) ]
 
     let makeLog x y speed width : GameObject list =
-        [ for i in 0 .. width - 1 -> Log(x * tileSize + float32 i * tileSize, y * tileSize, speed, dogeSprite) ]
+        [ for i in 0 .. width - 1 ->
+              Log(
+                  x * tileSize + float32 i * tileSize,
+                  y * tileSize,
+                  speed,
+                  (if i = 0 then
+                       logLeftEndSprite
+                   elif i = width - 1 then
+                       logRightEndSprite
+                   else
+                       logMiddleSprite)
+              ) ]
 
     let makeTurtles x y speed width sinkTimer : GameObject list =
         [ for i in 0 .. width - 1 ->
-              Turtle(x * tileSize + float32 i * tileSize, y * tileSize, speed, sinkTimer, dogeSprite) ]
+              Turtle(
+                  x * tileSize + float32 i * tileSize,
+                  y * tileSize,
+                  speed,
+                  sinkTimer,
+                  dogeSprite
+              ) ]
 
     let makeCar x y speed sprite : GameObject list =
         [ Car(x * tileSize, y * tileSize, speed, sprite) ]
@@ -268,7 +309,7 @@ type Playing() =
     let doge = Doge()
 
     let lives =
-        Graphics.NewText(font, sprintf "Lives: %d" doge.Lives)
+        Graphics.NewText(font, $"Lives: %d{doge.Lives}")
 
     let objects : GameObject list =
         List.concat [ goals |> List.map (fun goal -> goal :> GameObject)
@@ -311,13 +352,13 @@ type Playing() =
 
     member val State = State.Playing with get, set
 
-    override __.Draw() =
+    override _.Draw() =
         for object in objects do
             object.Draw()
 
         Graphics.Draw(lives)
 
-    override __.KeyPressed(key, scancode, isRepeat) =
+    override _.KeyPressed(key, scancode, isRepeat) =
         for object in objects do
             object.KeyPressed(key, scancode, isRepeat)
 
@@ -339,7 +380,7 @@ type Playing() =
         if goals |> Seq.forall (fun goal -> goal.IsAchieved) then
             this.State <- Victory
 
-        lives.Set(ColoredStringArray.Create(sprintf "Lives: %d" doge.Lives))
+        lives.Set(ColoredStringArray.Create $"Lives: %d{doge.Lives}")
 
 type GameOver() =
     inherit Scene()
@@ -347,7 +388,7 @@ type GameOver() =
     let text =
         Graphics.NewText(font, "Game Over\nPress R to restart")
 
-    override __.Draw() = Graphics.Draw(text)
+    override _.Draw() = Graphics.Draw(text)
 
 type Victory() =
     inherit Scene()
@@ -355,7 +396,7 @@ type Victory() =
     let text =
         Graphics.NewText(font, "You win!\nPress R to restart")
 
-    override __.Draw() = Graphics.Draw(text)
+    override _.Draw() = Graphics.Draw(text)
 
 type Program() =
     inherit Scene()
@@ -364,9 +405,9 @@ type Program() =
 
     let reset () = state <- Playing()
 
-    override __.Draw() = state.Draw()
+    override _.Draw() = state.Draw()
 
-    override __.Update(dt) =
+    override _.Update(dt) =
         state.Update(dt)
 
         match state with
@@ -377,7 +418,7 @@ type Program() =
             | _ -> ()
         | _ -> ()
 
-    override __.KeyPressed(key, scancode, isRepeat) =
+    override _.KeyPressed(key, scancode, isRepeat) =
         match key with
         | KeyConstant.Escape -> Event.Quit(0)
         | KeyConstant.R -> reset ()
